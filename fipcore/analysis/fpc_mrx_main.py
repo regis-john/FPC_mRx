@@ -24,7 +24,7 @@ import fipcore.utils.coord_utils as coord
 import fipcore.utils.io_utils as iout
 
 
-def fpc_mrx_main(trange, species='e', vth_lim=3.5, bin_width_frac=0.1, mean_phi=True, 
+def fpc_mrx_main(trange, species='e', vth_lim=3.5, bin_width_frac=0.1, mean_phi=False, 
         probe='1', data_rate='brst', level='l2', get_support_data=True, no_update=True, 
         lmn_mat_name='lmn_matrix', fac_mat_name='fac_matrix', **kwargs):
     
@@ -106,7 +106,7 @@ def fpc_mrx_main(trange, species='e', vth_lim=3.5, bin_width_frac=0.1, mean_phi=
 
     # --- Obtain Velocity Coordinates ---
     vv = vel.vbin_to_vv(vbin, 'phi', interleave_check=interleave_check, mean_phi=mean_phi)
-
+    
     # --- Shift into Reconnection Frame ---
     coord.lmn_matrix_make('bvec_gse_dwn', trange, newname=lmn_mat_name) # Creating LMN matrix
     tvector_rotate(mat_var_in=lmn_mat_name,vec_var_in='bvec_gse_dwn',
@@ -226,6 +226,8 @@ def fpc_mrx_main(trange, species='e', vth_lim=3.5, bin_width_frac=0.1, mean_phi=
             "probe":            probe,
             "data_rate":        data_rate,
             "level":            level,
+        },
+        "gse": {
             "vv_coord":         vv,
             "vdf_vol":          vdf_vol,
         },

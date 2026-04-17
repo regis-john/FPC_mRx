@@ -89,7 +89,7 @@ def nrgy_to_vbin(nrgyraw_name, scpot_name, species='e'):
     return vbin, grids_corr, interleave_check
 
 
-def vbin_to_vv(vbin, phi_var, interleave_check=True, mean_phi=True):
+def vbin_to_vv(vbin, phi_var, interleave_check=True, mean_phi=False):
     """
     Computes velocity vectors in the instrument frame.
     
@@ -97,7 +97,7 @@ def vbin_to_vv(vbin, phi_var, interleave_check=True, mean_phi=True):
     - vbin: np.array of shape (n_sweeps, 32) or (2, 32)
     - phi_var: str name of phi tplot variable
     - interleave_check: bool, whether to use energy tables in interleaved mode (default=True)
-    - mean_phi: bool, whether to use mean phi values or instantaneous phi values (default=True)
+    - mean_phi: bool, whether to use mean phi values or instantaneous phi values (default=False)
     
     Returns:
     - vv: np.array of shape (3, 16384, n_sweeps)
