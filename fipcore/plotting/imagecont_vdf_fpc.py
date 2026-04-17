@@ -14,6 +14,7 @@ Created: 2026-03-31
 import h5py
 from pyspedas import time_string
 import matplotlib.pyplot as plt
+plt.rcParams['mathtext.fontset'] = 'stix'
 import os
 
 from fipcore.utils.helper_utils import (mms_name_make, slice3d_to_2d, 
@@ -107,7 +108,9 @@ def imagecont_vdf_fpc(trange, species, bin_width_frac, time_index=0,
             if save_fig:
                 plot_name = f"mms_fpc_{species}_fac_{bin_width_frac:.2f}_{time_index}.png"
                 sfx_str = f'_{outdir_sfx}' if outdir_sfx else ''
-                output_dir = f'plots_fac{sfx_str}'
+                plot_dir = f'plots_fac{sfx_str}'
+                project_root = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
+                output_dir = os.path.join(project_root, plot_dir)
                 os.makedirs(output_dir, exist_ok=True)
                 fig.savefig(os.path.join(output_dir, plot_name), dpi=dpi_val, bbox_inches='tight')
                 plt.close(fig)
@@ -155,13 +158,14 @@ def imagecont_vdf_fpc(trange, species, bin_width_frac, time_index=0,
             if save_fig:
                 plot_name = f"mms_fpc_{species}_lmn_{bin_width_frac:.2f}_{time_index}.png"
                 sfx_str = f'_{outdir_sfx}' if outdir_sfx else ''
-                output_dir = f'plots_lmn{sfx_str}'
+                plot_dir = f'plots_lmn{sfx_str}'
+                project_root = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
+                output_dir = os.path.join(project_root, plot_dir)
                 os.makedirs(output_dir, exist_ok=True)
                 fig.savefig(os.path.join(output_dir, plot_name), dpi=dpi_val, bbox_inches='tight')
                 plt.close(fig)
             else:
                 plt.show()
-
 
 def imagecont_vdf_fpc_panel(vdf_2d, cx_2d, cy_2d, cz_2d, ax_pairs, axlabels_pairs, 
                             row_labels, diag_labels, dpi_val=100, axis_fntsz=16, 

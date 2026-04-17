@@ -4,3 +4,5 @@ data/
 fipcore.egg-info/
 # Any .h5 file
 *.h5
+**/__pycache__/
+*.pyc
