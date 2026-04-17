@@ -12,7 +12,7 @@ from fipcore import imagecont_vdf_fpc
 
 trange = ['2015-12-09/05:03:55', '2015-12-09/05:03:59']
 t_list = [58, 59, 60, 61, 62, 63, 64]
-for t_ind in t_list[0:2]:
+for t_ind in t_list:
     imagecont_vdf_fpc(trange, species='e', bin_width_frac=0.25, time_index = t_ind,
             coord_type='both', suptitle_sfx='', dpi_val=100, axis_fntsz=16, 
             cbar_ht=0.050, save_fig=True, outdir_sfx='', show_tind=True)
