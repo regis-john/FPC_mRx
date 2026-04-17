@@ -13,6 +13,7 @@ Created: 2026-03-26
 """
 
 import matplotlib.pyplot as plt
+plt.rcParams['mathtext.fontset'] = 'stix'
 from pyspedas import time_string
 from fipcore.utils.helper_utils import slice3d_to_2d, slice3d_to_2d_fac, global_vmin_vmax_fpc
 

@@ -14,6 +14,7 @@ Created: 2026-03-31
 import h5py
 from pyspedas import time_string
 import matplotlib.pyplot as plt
+plt.rcParams['mathtext.fontset'] = 'stix'
 import os
 
 from fipcore.utils.helper_utils import (mms_name_make, slice3d_to_2d, 
