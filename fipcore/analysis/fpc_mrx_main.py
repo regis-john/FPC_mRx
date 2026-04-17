@@ -1,0 +1,285 @@
+"""
+================================================================================
+Runnable master function to perform MMS FPC Analysis
+
+Functions:
+- fpc_mrx_main: Master function to perform MMS FPC Analysis
+
+Author: Regis John
+Created: 2026-03-31
+================================================================================
+"""
+
+import numpy as np
+import os
+from pyspedas.projects import mms
+from pyspedas import get_data, tplot_rename, tvector_rotate, fac_matrix_make
+
+import fipcore.analysis.vel_proc as vel
+import fipcore.analysis.vdf_proc as vdf
+import fipcore.analysis.evec_proc as evec
+import fipcore.analysis.fpc_proc as fpc
+import fipcore.utils.helper_utils as hutil
+import fipcore.utils.coord_utils as coord
+import fipcore.utils.io_utils as iout
+
+
+def fpc_mrx_main(trange, species='e', vth_lim=3.5, bin_width_frac=0.1, mean_phi=True, 
+        probe='1', data_rate='brst', level='l2', get_support_data=True, no_update=True, 
+        lmn_mat_name='lmn_matrix', fac_mat_name='fac_matrix', **kwargs):
+    
+    # --- MMS Data Loading --- 
+    # Read in FPI data
+    """
+    Master function to perform MMS FPC Analysis by calling the necessary functions.
+
+    Parameters:
+    - trange (list of str): start time, end time] in the format:
+        ['YYYY-MM-DD/hh:mm:ss','YYYY-MM-DD/hh:mm:ss']
+    - species (str): Species of particle to analyze. Default is 'e'.
+    - vth_lim (float): Thermal velocity limit used to determine the bin edges. 
+        Default is 3.5.
+    - bin_width_frac (float): Fraction of the thermal velocity used to 
+        determine the bin width. Default is 0.1.
+    - mean_phi (bool): mean or instantaneous phi values. Default: True.
+    - probe (str): Probe number to analyze. Default is '1'.
+    - data_rate (str): Data rate of the data. Default is 'brst'.
+    - level (str): Level of the data. Default is 'l2'.
+    - get_support_data (bool): If True, load in support data. Default is True.
+    - no_update (bool): If True, the data will not be updated from the server. 
+        Default is True.
+    - lmn_mat_name (str): Name of the LMN matrix. Default is 'lmn_matrix'.
+    - fac_mat_name (str): Name of the FAC matrix. Default is 'fac_matrix'.
+    - **kwargs: Additional keyword arguments to pass to the other functions.
+
+    Returns:
+    - hfile (str): Full path of the .h5 file containing the results of the analysis.
+    """
+    fpi_vars = mms.fpi(trange= trange, probe=probe, data_rate=data_rate, level=level,
+        datatype=['des-dist', 'dis-dist', 'des-moms', 'dis-moms'], 
+        time_clip=True, varnames=['mms1_des_energy_brst', 'mms1_des_phi_brst', 
+        'mms1_des_bulkv_gse_brst', 'mms1_dis_bulkv_gse_brst', 'mms1_des_temppara_brst', 
+        'mms1_des_tempperp_brst', 'mms1_dis_temppara_brst', 'mms1_dis_tempperp_brst', 
+        'mms1_des_dist_brst', 'mms1_des_disterr_brst', 'mms1_des_errorflags_brst_dist'], 
+        get_support_data=get_support_data, no_update=no_update)
+    
+    # Read in EDP data
+    edp_vars = mms.edp(trange=trange, probe=probe, data_rate=data_rate, level=level,
+        datatype=['dce', 'scpot'],
+        time_clip=True, varnames=['mms1_edp_scpot_brst_l2', 
+        'mms1_edp_dce_gse_brst_l2', 'mms1_edp_dce_par_epar_brst_l2'], 
+        get_support_data=get_support_data, no_update=no_update)
+    
+    # Read in FGM data
+    fgm_vars = mms.fgm(trange=trange, probe=probe, data_rate=data_rate, level=level,
+        varnames='mms1_fgm_b_gse_brst_l2', time_clip=True, get_support_data=get_support_data, 
+        no_update=no_update)
+    
+    # Renaming tplot variables
+    tplot_rename('mms1_des_energy_brst', 'nrgy')
+    tplot_rename('mms1_edp_scpot_brst_l2', 'scpot')
+    tplot_rename('mms1_des_bulkv_gse_brst', 'bulk_ve_gse')
+    tplot_rename('mms1_dis_bulkv_gse_brst', 'bulk_vi_gse')
+    tplot_rename('mms1_des_phi_brst', 'phi')
+    tplot_rename('mms1_fgm_b_gse_brst_l2_bvec', 'bvec_gse')
+    tplot_rename('mms1_des_temppara_brst', 'te_para')
+    tplot_rename('mms1_des_tempperp_brst', 'te_perp')  
+    tplot_rename('mms1_dis_temppara_brst', 'ti_para')  
+    tplot_rename('mms1_dis_tempperp_brst', 'ti_perp') 
+    tplot_rename('mms1_des_dist_brst', 'vdf_raw')
+    tplot_rename('mms1_des_disterr_brst', 'vdf_err')
+    tplot_rename('mms1_des_errorflags_brst_dist', 'dq_flags')
+    tplot_rename('mms1_edp_dce_gse_brst_l2', 'evec_gse')
+
+    print("Loaded MMS data!")
+
+    # Downsampling to DES cadence of 30 ms
+    hutil.downsample_cad('scpot', 'bulk_ve_gse', trange, newname='scpot_dwn')
+    hutil.downsample_cad('bvec_gse', 'bulk_ve_gse', trange, newname='bvec_gse_dwn')
+    hutil.downsample_cad('evec_gse', 'bulk_ve_gse', trange, newname='evec_gse_dwn')
+
+    # Interpolating to DES cadence of 30 ms
+    hutil.upsample_cad('bulk_vi_gse', 'bulk_ve_gse', newname='bulk_vi_gse_int')
+
+    # --- Spacecraft Potential & Interleave Correction ---
+    vbin, grids_corr, interleave_check = vel.nrgy_to_vbin('nrgy', 'scpot_dwn', species=species)
+
+    # --- Obtain Velocity Coordinates ---
+    vv = vel.vbin_to_vv(vbin, 'phi', interleave_check=interleave_check, mean_phi=mean_phi)
+
+    # --- Shift into Reconnection Frame ---
+    coord.lmn_matrix_make('bvec_gse_dwn', trange, newname=lmn_mat_name) # Creating LMN matrix
+    tvector_rotate(mat_var_in=lmn_mat_name,vec_var_in='bvec_gse_dwn',
+                        newname='bvec_lmn') # Rotating B vector into LMN frame
+    
+    idx = hutil.bl_recx_idx('bvec_lmn')# Finding index of X-line passing
+    bulk_vi_rev = vel.vi_bl_flip(idx, 'bulk_vi_gse_int') # Bulk ion velocity at X-line
+
+    vv_recx = vel.vv_to_recx(vv, bulk_vi_rev) # Shift into reconnection frame
+    
+    # --- Rotate velocity bins into FAC Coordinates ---
+    fac_matrix_make(mag_var_name='bvec_gse_dwn', other_dim='Xgse', 
+                             newname=fac_mat_name) # Creating FAC matrix
+    time, fac_matrix  = get_data(fac_mat_name)
+
+    vv_fac = vel.vv_to_fac(vv_recx, fac_matrix) # Shift into FAC coordinates  
+
+    # --- Rotate velocity bins into LMN Coordinates ---
+    _, lmn_matrix  = get_data(lmn_mat_name)
+    vv_lmn = vel.vv_to_lmn(vv_recx, lmn_matrix) # Shift into LMN coordinates
+
+    # --- Computing FAC to LMN unit vector projections ---
+    fac2lmn, lmn2fac = coord.fac_lmn_proj(fac_mat_name, lmn_mat_name)
+
+    # --- Computing Thermal Velocities ---
+    vthe, vthe_mean = hutil.compute_vth('te_para', 'te_perp', species=species)
+
+    # --- Create Coordinate Maps ---
+    vmap_fac, binc_fac, binc_facn, edges_fac, edges_facn, n_vbins_fac = vel.vv_to_vmap(vv_fac, 
+                                vthe_mean, vth_lim=vth_lim, bin_width_frac=bin_width_frac)
+    vmap_lmn, binc_lmn, binc_lmnn, edges_lmn, edges_lmnn, n_vbins_lmn = vel.vv_to_vmap(vv_lmn, 
+                                vthe_mean, vth_lim=vth_lim, bin_width_frac=bin_width_frac)
+    
+    print("Velocity maps created!")
+
+    # --- Compute Volume Element --- 
+    vvol = vel.compute_vbin_vol(vbin)
+
+    # # --- Process VDF ---
+    vdf_raw, vdf_vol = vdf.process_vdf('vdf_raw', 'vdf_err', 'dq_flags', vvol)
+
+    # --- Binning the VDF ---
+    # in FAC:
+    bvdf_vol_fac, npts_vol_fac = vdf.bin_vdf_vol(vdf_vol, vmap_fac, n_vbins_fac, 
+                                    n_vbins_fac, n_vbins_fac, interleave_check)
+    bvdf_avg_fac, _ = vdf.bin_vdf_avg(vdf_raw, vmap_fac, n_vbins_fac, 
+                                    n_vbins_fac, n_vbins_fac, interleave_check)
+    
+    # in LMN:
+    bvdf_vol_lmn, npts_vol_lmn = vdf.bin_vdf_vol(vdf_vol, vmap_lmn, n_vbins_lmn, 
+                                    n_vbins_lmn, n_vbins_lmn, interleave_check)
+    bvdf_avg_lmn, _ = vdf.bin_vdf_avg(vdf_raw, vmap_lmn, n_vbins_lmn, 
+                                    n_vbins_lmn, n_vbins_lmn, interleave_check)
+    
+    print("VDF processed and binned!")
+
+    # --- Lorentz Transform & rotate Electric Field ---
+    evec.evec_to_recx('evec_gse_dwn', 'bvec_gse_dwn', bulk_vi_rev, newname='evec_gse_dwns_lor')
+    # rotate electric field into FAC coordinates
+    evec.evec_to_fac('evec_gse_dwns_lor', fac_mat_name, newname='evec_lor_fac')
+    # rotate electric field into LMN coordinates
+    evec.evec_to_lmn('evec_gse_dwns_lor', lmn_mat_name, newname='evec_lor_lmn')
+
+    # --- Compute Alternative FPC ---
+    # cprime in fac
+    cpfac_raw = fpc.compute_cprime(vv_fac, 'evec_lor_fac', vdf_raw, species=species)
+    cpfac_vol = fpc.compute_cprime(vv_fac, 'evec_lor_fac', vdf_vol, species=species)
+    # cprime in lmn
+    cplmn_raw = fpc.compute_cprime(vv_lmn, 'evec_lor_lmn', vdf_raw, species=species)
+    cplmn_vol = fpc.compute_cprime(vv_lmn, 'evec_lor_lmn', vdf_vol, species=species)
+
+    # binning cprime in fac
+    bcpfac_vol, npts_vol_cpfac = fpc.bin_cprime_vol(cpfac_vol, vmap_fac, n_vbins_fac, 
+                                n_vbins_fac, n_vbins_fac, interleave_check)
+    bcpfac_avg, _ = fpc.bin_cprime_avg(cpfac_raw, vmap_fac, n_vbins_fac, n_vbins_fac, 
+                                    n_vbins_fac, interleave_check)
+    
+    # binning cprime in lmn
+    bcplmn_vol, npts_vol_cplmn = fpc.bin_cprime_vol(cplmn_vol, vmap_lmn, n_vbins_lmn, 
+                                n_vbins_lmn, n_vbins_lmn, interleave_check)
+    bcplmn_avg, _ = fpc.bin_cprime_avg(cplmn_raw, vmap_lmn, n_vbins_lmn, n_vbins_lmn, 
+                                    n_vbins_lmn, interleave_check)
+    
+    # computing energization
+    jefac_tot = fpc.jEtot_cprime(bcpfac_vol)
+    jelmn_tot = fpc.jEtot_cprime(bcplmn_vol)
+    
+    print("Cprime computed and binned!")
+
+    # --- Compute Standard FPC ---
+    # C in FAC
+    c_fac_vol = fpc.compute_fpc(bcpfac_vol, binc_fac, binc_fac, binc_fac)
+    c_fac_avg = fpc.compute_fpc(bcpfac_avg, binc_fac, binc_fac, binc_fac)
+    # C in LMN
+    c_lmn_vol = fpc.compute_fpc(bcplmn_vol, binc_lmn, binc_lmn, binc_lmn)
+    c_lmn_avg = fpc.compute_fpc(bcplmn_avg, binc_lmn, binc_lmn, binc_lmn)
+
+    print("Computed Standard FPC!")
+
+    # Extracting Lorentz Transformed and Rotated Electric Field for saving
+    _, evec_lor_fac = get_data('evec_lor_fac')
+    _, evec_lor_lmn = get_data('evec_lor_lmn')
+
+    dat_grps = {
+        "meta": {
+            "species":          species,
+            "trange":           trange,
+            "time":             time,
+            "bin_width_frac":   bin_width_frac,
+            "vthe":             vthe,
+            "vth_mean":         vthe_mean,
+            "vth_lim":          vth_lim,
+            "interleave_check": interleave_check,
+            "vvol":             vvol,
+            "fac2lmn":          fac2lmn,
+            "lmn2fac":          lmn2fac,
+            "probe":            probe,
+            "data_rate":        data_rate,
+            "level":            level,
+            "vv_coord":         vv,
+            "vdf_vol":          vdf_vol,
+        },
+        "fac": {
+            "fac_mat":       fac_matrix,
+            "vv_fac":        vv_fac,
+            "vmap_fac":      vmap_fac,
+            "bvdf_vol":      bvdf_vol_fac,
+            "npts_vol":      npts_vol_fac,
+            "bvdf_avg":      bvdf_avg_fac,
+            "evec_lor_fac":  evec_lor_fac,
+            "Cprime_vol":    cpfac_vol,
+            "Cprime_raw":    cpfac_raw,
+            "bCprime_avg":   bcpfac_avg,
+            "bCprime_vol":   bcpfac_vol,
+            "npts_vol_cp":   npts_vol_cpfac,
+            "JE_tot":        jefac_tot,
+            "c_fac_vol":     c_fac_vol,
+            "c_fac_avg":     c_fac_avg,
+            "binc_fac":      binc_fac,
+            "binc_facn":     binc_facn,
+            "edges_fac":     edges_fac,
+            "edges_facn":    edges_facn,
+        },
+        "lmn": {
+            "lmn_mat":       lmn_matrix,
+            "vv_lmn":        vv_lmn,
+            "vmap_lmn":      vmap_lmn,
+            "bvdf_vol":      bvdf_vol_lmn,
+            "npts_vol":      npts_vol_lmn,
+            "bvdf_avg":      bvdf_avg_lmn,
+            "evec_lor_lmn":  evec_lor_lmn,
+            "Cprime_vol":    cplmn_vol,
+            "Cprime_raw":    cplmn_raw,
+            "bCprime_avg":    bcplmn_avg,
+            "bCprime_vol":    bcplmn_vol,
+            "npts_vol_cp":   npts_vol_cplmn,
+            "JE_tot":        jelmn_tot,
+            "c_lmn_vol":     c_lmn_vol,
+            "c_lmn_avg":     c_lmn_avg,
+            "binc_lmn":      binc_lmn,
+            "binc_lmnn":     binc_lmnn,
+            "edges_lmn":     edges_lmn,
+            "edges_lmnn":    edges_lmnn,
+        }
+    }
+    # --- Saving to a .h5 file ---
+    project_root = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
+    data_dir = os.path.join(project_root, "data")
+    os.makedirs(data_dir, exist_ok=True)
+    hfile_pref = f'mms_fpc_{species}_{bin_width_frac:.2f}'
+    hfile = os.path.join(data_dir, iout.mms_name_make(hfile_pref, trange[0], trange[1]))
+    iout.h5sav(hfile, dat_grps)
+
+    print(f"Data saved to file: {hfile}")
+    
+    return hfile

@@ -1,2 +1,6 @@
 # Data
 data/
+# Editable Folder
+fipcore.egg-info/
+# Any .h5 file
+*.h5
