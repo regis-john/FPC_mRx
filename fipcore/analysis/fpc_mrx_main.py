@@ -101,10 +101,10 @@ def fpc_mrx_main(trange, species='e', vth_lim=3.5, bin_width_frac=0.1, mean_phi=
     hutil.upsample_cad('bulk_vi_gse', 'bulk_ve_gse', newname='bulk_vi_gse_int')
 
     # --- Spacecraft Potential & Interleave Correction ---
-    vbin, grids_corr, interleave_check = vel.nrgy_to_vbin('nrgy', 'scpot_dwn', species=species)
+    vbin, grids_corr, interleave_info = vel.nrgy_to_vbin('nrgy', 'scpot_dwn', species=species)
 
     # --- Obtain Velocity Coordinates ---
-    vv = vel.vbin_to_vv(vbin, 'phi', interleave_check=interleave_check, mean_phi=mean_phi)
+    vv = vel.vbin_to_vv(vbin, 'phi', mean_phi=mean_phi)
     
     # --- Shift into Reconnection Frame ---
     coord.lmn_matrix_make('bvec_gse_dwn', trange, newname=lmn_mat_name) # Creating LMN matrix
@@ -151,15 +151,15 @@ def fpc_mrx_main(trange, species='e', vth_lim=3.5, bin_width_frac=0.1, mean_phi=
     # --- Binning the VDF ---
     # in FAC:
     bvdf_vol_fac, npts_vol_fac = vdf.bin_vdf_vol(vdf_vol, vmap_fac, n_vbins_fac, 
-                                    n_vbins_fac, n_vbins_fac, interleave_check)
+                                    n_vbins_fac, n_vbins_fac)
     bvdf_avg_fac, _ = vdf.bin_vdf_avg(vdf_raw, vmap_fac, n_vbins_fac, 
-                                    n_vbins_fac, n_vbins_fac, interleave_check)
+                                    n_vbins_fac, n_vbins_fac)
     
     # in LMN:
     bvdf_vol_lmn, npts_vol_lmn = vdf.bin_vdf_vol(vdf_vol, vmap_lmn, n_vbins_lmn, 
-                                    n_vbins_lmn, n_vbins_lmn, interleave_check)
+                                    n_vbins_lmn, n_vbins_lmn)
     bvdf_avg_lmn, _ = vdf.bin_vdf_avg(vdf_raw, vmap_lmn, n_vbins_lmn, 
-                                    n_vbins_lmn, n_vbins_lmn, interleave_check)
+                                    n_vbins_lmn, n_vbins_lmn)
     
     print("VDF processed and binned!")
 
@@ -180,15 +180,15 @@ def fpc_mrx_main(trange, species='e', vth_lim=3.5, bin_width_frac=0.1, mean_phi=
 
     # binning cprime in fac
     bcpfac_vol, npts_vol_cpfac = fpc.bin_cprime_vol(cpfac_vol, vmap_fac, n_vbins_fac, 
-                                n_vbins_fac, n_vbins_fac, interleave_check)
+                                n_vbins_fac, n_vbins_fac)
     bcpfac_avg, _ = fpc.bin_cprime_avg(cpfac_raw, vmap_fac, n_vbins_fac, n_vbins_fac, 
-                                    n_vbins_fac, interleave_check)
+                                    n_vbins_fac)
     
     # binning cprime in lmn
     bcplmn_vol, npts_vol_cplmn = fpc.bin_cprime_vol(cplmn_vol, vmap_lmn, n_vbins_lmn, 
-                                n_vbins_lmn, n_vbins_lmn, interleave_check)
+                                n_vbins_lmn, n_vbins_lmn)
     bcplmn_avg, _ = fpc.bin_cprime_avg(cplmn_raw, vmap_lmn, n_vbins_lmn, n_vbins_lmn, 
-                                    n_vbins_lmn, interleave_check)
+                                    n_vbins_lmn)
     
     # computing energization
     jefac_tot = fpc.jEtot_cprime(bcpfac_vol)
@@ -219,7 +219,7 @@ def fpc_mrx_main(trange, species='e', vth_lim=3.5, bin_width_frac=0.1, mean_phi=
             "vthe":             vthe,
             "vth_mean":         vthe_mean,
             "vth_lim":          vth_lim,
-            "interleave_check": interleave_check,
+            "interleave_info": interleave_info,
             "vvol":             vvol,
             "fac2lmn":          fac2lmn,
             "lmn2fac":          lmn2fac,

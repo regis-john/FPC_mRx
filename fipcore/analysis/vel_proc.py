@@ -48,7 +48,9 @@ def nrgy_to_vbin(nrgyraw_name, scpot_name, species='e'):
     grids_corr : ndarray
         Array of energy bins corrected for spacecraft potential in eV.
     msg : string
-        String indicating whether the energy grid is interleaved or not. """
+        String indicating whether the energy grid is interleaved or not. 
+    """
+    # Extract data
     _, nrgy_raw = get_data(nrgyraw_name)
     _, scpot_data = get_data(scpot_name)
     
@@ -89,22 +91,22 @@ def nrgy_to_vbin(nrgyraw_name, scpot_name, species='e'):
     return vbin, nrgy_corr, msg
 
 
-def vbin_to_vv(vbin, phi_var, interleave_check=True, mean_phi=False):
+def vbin_to_vv(vbin, phi_var, mean_phi=False):
     """
     Computes velocity vectors in the instrument frame.
     
     Parameters:
-    - vbin: np.array of shape (n_sweeps, 32) or (2, 32)
+    - vbin: np.array of shape (ntime, 32)
     - phi_var: str name of phi tplot variable
-    - interleave_check: bool, whether to use energy tables in interleaved mode (default=True)
     - mean_phi: bool, whether to use mean phi values or instantaneous phi values (default=False)
     
     Returns:
-    - vv: np.array of shape (3, 16384, n_sweeps)
+    - vv: np.array of shape (3, 16384, ntime)
     """
     # Constants
     N_PHI, N_THETA, N_ENERGY = 32, 16, 32
     DEG2RAD = np.pi / 180.0
+    ntime = vbin.shape[0]
 
     # Compute Theta (16,) and reshape to (1, 16, 1)
     theta = (5.625 + 11.25 * np.arange(N_THETA)) * DEG2RAD
@@ -115,37 +117,31 @@ def vbin_to_vv(vbin, phi_var, interleave_check=True, mean_phi=False):
     _, phi_data = get_data(phi_var)
     phi_data *= DEG2RAD
 
-    if mean_phi:
-        # In mean phi mode, we use energy tables whether interleaved or not
-        n_sweeps = interleave_check + 1
-        # Reshape (phi,) -> (1, 32, 1, 1)
-        phi_vec = np.mean(phi_data, axis=0)[None, :, None, None]
-        # Reshape vbin is (n_sweeps, energy) -> (n_sweeps, 1, 1, 32)
-        v_mag = vbin[:, None, None, :] 
-    else:
-        # In instantaneous mode, n_sweeps is the total number of time points (npts)
-        n_sweeps = phi_data.shape[0]
-        # Reshape (ntime, phi) -> (ntime, 32, 1, 1)
-        phi_vec = phi_data[:, :, None, None]
-        # Map energy tables to time steps
-        ip_indices = np.arange(n_sweeps) % 2 if interleave_check > 0 else np.zeros(n_sweeps, dtype=int)
-        v_mag = vbin[ip_indices][:, None, None, :]
+    # Reshape vbin is (ntime, energy) -> (ntime, 1, 1, 32)
+    v_mag = vbin[:, None, None, :] 
 
-    # Calculate Trig for Phi (n_sweeps, 32, 1, 1)
+    if mean_phi:
+        # Reshape phi to mean phi: (ntime,) -> (1, 32, 1, 1)
+        phi_vec = np.mean(phi_data, axis=0)[None, :, None, None]   
+    else:# Instantaneous mode
+        # Reshape phi: (ntime, 32) -> (ntime, 32, 1, 1)
+        phi_vec = phi_data[:, :, None, None]
+
+    # Calculate Trig for Phi (ntime, 32, 1, 1)
     sin_phi = np.sin(phi_vec)
     cos_phi = np.cos(phi_vec)
 
-    # Broadcast Multiplication: results in (n_sweeps, 32, 16, 32)
+    # Broadcast Multiplication: results in (ntime, 32, 16, 32)
     # Order: [time, phi, theta, energy]
     vx = v_mag * sin_th * cos_phi
     vy = v_mag * sin_th * sin_phi
     vz = v_mag * cos_th * np.ones((1, N_PHI, 1, 1)) # vz only depends on theta and energy mag
 
-    # Flatten to (3, 16384, n_sweeps)
+    # Flatten to (3, 16384, ntime)
     vv = np.stack([
-        vx.reshape(n_sweeps, -1).T,
-        vy.reshape(n_sweeps, -1).T,
-        vz.reshape(n_sweeps, -1).T
+        vx.reshape(ntime, -1).T,
+        vy.reshape(ntime, -1).T,
+        vz.reshape(ntime, -1).T
     ], axis=0)
 
     return -vv # Instrument looks 'outward', so velocity of plasma is negative of bin vector
