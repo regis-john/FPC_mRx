@@ -75,13 +75,10 @@ def bin_cprime_3d(cprime, vmap, n_vx, n_vy, n_vz, interleave_check):
     # Loop over time
     for t in range(ntime):
 
-        # Interleave parity
-        parity = t % 2 if interleave_check else 0
-
         # Extract bin indices for this time
-        ix = vmap[0, :, parity]
-        iy = vmap[1, :, parity]
-        iz = vmap[2, :, parity]
+        ix = vmap[0, :, t]
+        iy = vmap[1, :, t]
+        iz = vmap[2, :, t]
 
         # Mask invalid bins
         valid = (ix >= 0) & (iy >= 0) & (iz >= 0)

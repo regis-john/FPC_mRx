@@ -27,9 +27,6 @@ import fipcore.utils.io_utils as iout
 def fpc_mrx_main(trange, species='e', vth_lim=3.5, bin_width_frac=0.1, mean_phi=False, 
         probe='1', data_rate='brst', level='l2', get_support_data=True, no_update=True, 
         lmn_mat_name='lmn_matrix', fac_mat_name='fac_matrix', **kwargs):
-    
-    # --- MMS Data Loading --- 
-    # Read in FPI data
     """
     Master function to perform MMS FPC Analysis by calling the necessary functions.
 
@@ -55,6 +52,8 @@ def fpc_mrx_main(trange, species='e', vth_lim=3.5, bin_width_frac=0.1, mean_phi=
     Returns:
     - hfile (str): Full path of the .h5 file containing the results of the analysis.
     """
+    # --- MMS Data Loading --- 
+    # Read in FPI data
     fpi_vars = mms.fpi(trange= trange, probe=probe, data_rate=data_rate, level=level,
         datatype=['des-dist', 'dis-dist', 'des-moms', 'dis-moms'], 
         time_clip=True, varnames=['mms1_des_energy_brst', 'mms1_des_phi_brst', 
@@ -141,6 +140,7 @@ def fpc_mrx_main(trange, species='e', vth_lim=3.5, bin_width_frac=0.1, mean_phi=
                                 vthe_mean, vth_lim=vth_lim, bin_width_frac=bin_width_frac)
     
     print("Velocity maps created!")
+    print(vmap_fac.shape, vmap_lmn.shape)
 
     # --- Compute Volume Element --- 
     vvol = vel.compute_vbin_vol(vbin)
