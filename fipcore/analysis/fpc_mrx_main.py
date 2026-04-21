@@ -140,7 +140,6 @@ def fpc_mrx_main(trange, species='e', vth_lim=3.5, bin_width_frac=0.1, mean_phi=
                                 vthe_mean, vth_lim=vth_lim, bin_width_frac=bin_width_frac)
     
     print("Velocity maps created!")
-    print(vmap_fac.shape, vmap_lmn.shape)
 
     # --- Compute Volume Element --- 
     vvol = vel.compute_vbin_vol(vbin)
