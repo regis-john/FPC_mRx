@@ -1,8 +1,17 @@
 # Data
 data/
+
 # Editable Folder
 fipcore.egg-info/
-# Any .h5 file
+
+# Any .h5 data file
 *.h5
+
+# Python Bytecode
 **/__pycache__/
 *.pyc
+
+# Compressed archives
+*.tar
+*.tar.gz
+*.zip
