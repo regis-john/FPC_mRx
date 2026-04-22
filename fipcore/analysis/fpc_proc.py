@@ -52,7 +52,7 @@ def compute_cprime(vv, efdat, vdf_dat, species='e'):
     return q * vv_time * vdf_dat * ef  # (3, 16384, ntime)
 
 
-def bin_cprime_3d(cprime, vmap, n_vx, n_vy, n_vz, interleave_check):
+def bin_cprime_3d(cprime, vmap, n_vx, n_vy, n_vz):
     """
     Bin C' correlation term data into a 3D grid.
 
@@ -60,7 +60,6 @@ def bin_cprime_3d(cprime, vmap, n_vx, n_vy, n_vz, interleave_check):
     cprime (numpy.ndarray): C' correlation term data.
     vmap (numpy.ndarray): Mapping of velocity bins in normalized velocity space.
     n_vx, n_vy, n_vz (int): Number of bins in each velocity dimension.
-    interleave_check (bool): Flag to check if the data is interleaved, default=True
 
     Returns:
     Cprime_binned (numpy.ndarray): Binned C' correlation term data.
@@ -75,13 +74,10 @@ def bin_cprime_3d(cprime, vmap, n_vx, n_vy, n_vz, interleave_check):
     # Loop over time
     for t in range(ntime):
 
-        # Interleave parity
-        parity = t % 2 if interleave_check else 0
-
         # Extract bin indices for this time
-        ix = vmap[0, :, parity]
-        iy = vmap[1, :, parity]
-        iz = vmap[2, :, parity]
+        ix = vmap[0, :, t]
+        iy = vmap[1, :, t]
+        iz = vmap[2, :, t]
 
         # Mask invalid bins
         valid = (ix >= 0) & (iy >= 0) & (iz >= 0)

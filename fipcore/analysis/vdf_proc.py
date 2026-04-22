@@ -99,7 +99,7 @@ def process_vdf(vdf_raw_var, vdf_err_var, dq_flags_var, vvol):
     return vdf_raw, vdf_vol
 
 
-def bin_vdf_3d(vdf_dat, vmap, n_vx, n_vy, n_vz, interleave_check=True):
+def bin_vdf_3d(vdf_dat, vmap, n_vx, n_vy, n_vz):
     """
     Bin VDF data into a 3D grid.
 
@@ -115,8 +115,6 @@ def bin_vdf_3d(vdf_dat, vmap, n_vx, n_vy, n_vz, interleave_check=True):
         Number of bins along 2nd direction
     n_vz : int
         Number of bins along 3rd direction
-    interleave_check : bool
-        Flag to check if the data is interleaved, default=True
 
     Returns
     -------
@@ -135,13 +133,10 @@ def bin_vdf_3d(vdf_dat, vmap, n_vx, n_vy, n_vz, interleave_check=True):
     # Loop only over time
     for t in range(ntime):
 
-        # Interleave parity
-        parity = t % 2 if interleave_check else 0
-
         # Extract bin indices for this time
-        ix = vmap[0, :, parity]   # v⊥1
-        iy = vmap[1, :, parity]   # v⊥2
-        iz = vmap[2, :, parity]   # v∥
+        ix = vmap[0, :, t]   # v⊥1
+        iy = vmap[1, :, t]   # v⊥2
+        iz = vmap[2, :, t]   # v∥
 
         # Mask out invalid bins
         valid = (ix >= 0) & (iy >= 0) & (iz >= 0)
@@ -169,7 +164,6 @@ def bin_vdf_vol(*args, **kwargs):
     vmap: numpy.ndarray of shape (3, npts); Mapping of velocity bins in 
         normalized velocity space
     n_vx, n_vy, n_vz: int; number of bins in each velocity dimension
-    interleave_check: bool, Flag to check if the data is interleaved, default=True
 
     Returns:
     vdf_vol_binned: numpy.ndarray of shape (n_vx, n_vy, n_vz, ntime)
@@ -192,7 +186,6 @@ def bin_vdf_avg(*args, **kwargs):
     vmap: numpy.ndarray of shape (3, npts); Mapping of velocity bins in 
         normalized velocity space
     n_vx, n_vy, n_vz: int; number of bins in each velocity dimension
-    interleave_check: bool, Flag to check if the data is interleaved, default=True
 
     Returns
     -------
