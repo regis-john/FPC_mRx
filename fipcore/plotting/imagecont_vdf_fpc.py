@@ -53,113 +53,83 @@ def imagecont_vdf_fpc(trange, species, bin_width_frac, time_index=0,
     """
     if suptitle_sfx is None:
         suptitle_sfx = f"with {bin_width_frac} binwidth"
-    
 
+    # File path setup
     project_root = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
     data_dir = os.path.join(project_root, "data")
     hfile_pref = f'mms_fpc_{species}_{bin_width_frac:.2f}'
     hfile = os.path.join(data_dir, mms_name_make(hfile_pref, trange[0], trange[1]))
-    # hfile = mms_name_make(hfile_pref, trange[0], trange[1])
-    
+
     with h5py.File(hfile, "r") as f:
+        # Global Metadata
+        meta = f["meta"]
         time = f["meta"]["time"][:]
         species = f["meta"]["species"].asstr()[()]
         probe = f["meta"]["probe"].asstr()[()]
         title_time = time_string(time[time_index])[:-3]
-        species_name = {'e':'Electron', 'i':'Ion'}
+        species_label = 'Electron' if species == 'e' else 'Ion'
 
-        if coord_type in ("fac", "both"):
-            suptitle = (f"{species_name[species]} VDF and FPC components (FAC) " 
-                        f"{suptitle_sfx}\n MMS{probe} — {title_time}")
-            vdf_fac = f["fac"]["bvdf_vol"][:, :, :, time_index]
-            c_fac = f["fac"]["c_fac_vol"][:, :, :, :, time_index]
-            xc_fac = f["fac"]["binc_facn"][:]
-            yc_fac = f["fac"]["binc_facn"][:]
-            zc_fac = f["fac"]["binc_facn"][:]
-            je_fac = f["fac"]["JE_tot"][:, time_index]
-            vdf_xy, vdf_yz, vdf_xz = slice3d_to_2d(vdf_fac)
-            cx_xy, cx_yz, cx_xz = slice3d_to_2d(c_fac[0])
-            cy_xy, cy_yz, cy_xz = slice3d_to_2d(c_fac[1])
-            cz_xy, cz_yz, cz_xz = slice3d_to_2d(c_fac[2])
-            vdf_2d_fac = (vdf_xy, vdf_xz, vdf_yz.T) # The order is xy, xz and zy
-            cx_2d_fac = (cx_xy, cx_xz, cx_yz.T)
-            cy_2d_fac = (cy_xy, cy_xz, cy_yz.T)
-            cz_2d_fac = (cz_xy, cz_xz, cz_yz.T)
-            ax_pairs_fac = ((xc_fac, yc_fac), (xc_fac, zc_fac), (zc_fac, yc_fac))
-            axlabels_fac = (r"$v_{\perp 1}/v_{te}$", r"$v_{\perp 2}/v_{te}$", 
-                                r"$v_{\parallel}/v_{te}$")
-            axlabel_pairs_fac = ((axlabels_fac[0], axlabels_fac[1]), # xy, xz, zy
-                                (axlabels_fac[0], axlabels_fac[2]), 
-                                (axlabels_fac[2], axlabels_fac[1]))
-            row_labels_fac = (rf"$\mathrm{{log}}(f_{{{species}}})$", 
+        # Determine which coordinates to process
+        c_types = ["fac", "lmn"] if coord_type == "both" else [coord_type]
+
+        for ct in c_types:
+            grp = f[ct]
+
+            # Dynamic Labels based on Coordinate System
+            if ct == "fac":
+                ax_lbls = [r"$v_{\perp 1}/v_{te}$", r"$v_{\perp 2}/v_{te}$", 
+                           r"$v_{\parallel}/v_{te}$"]
+                subs = [r"{\perp 1}", r"{\perp 2}", r"{\parallel}"]
+                row_lbls = [rf"$\mathrm{{log}}(f_{{{species}}})$", 
                     r"$C_{\mathrm{E}\perp 1}$", r"$C_{\mathrm{E}\perp 2}$", 
-                    r"$C_{\mathrm{E}\parallel}$")
-            diag_labels_fac = (rf"$J_{{\perp 1}}E_{{\perp 1}} = {je_fac[0]:.2e}$", 
-                               rf"$J_{{\perp 2}}E_{{\perp 2}} = {je_fac[1]:.2e}$", 
-                               rf"$J_{{\parallel}}E_{{\parallel}} = {je_fac[2]:.2e}$")
-            fig = imagecont_vdf_fpc_panel(vdf_2d_fac, cx_2d_fac, cy_2d_fac, cz_2d_fac, 
-                        ax_pairs_fac, axlabel_pairs_fac, row_labels_fac, diag_labels_fac, 
-                        dpi_val, axis_fntsz, cbar_ht)
-            fig.suptitle(suptitle, fontsize = 24)
-            
-            if show_tind:
-                fig.text(0.98, 0.98, f"t: {time_index}", ha="right", va="top", fontsize=18)
-
-            if save_fig:
-                plot_name = f"mms_fpc_{species}_fac_{bin_width_frac:.2f}_{time_index}.png"
-                sfx_str = f'_{outdir_sfx}' if outdir_sfx else ''
-                plot_dir = f'plots_fac{sfx_str}'
-                project_root = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
-                output_dir = os.path.join(project_root, plot_dir)
-                os.makedirs(output_dir, exist_ok=True)
-                fig.savefig(os.path.join(output_dir, plot_name), dpi=dpi_val, bbox_inches='tight')
-                plt.close(fig)
+                    r"$C_{\mathrm{E}\parallel}$"]
             else:
-                plt.show()
-
-
-        if coord_type in ("lmn", "both"):
-            suptitle_sfx
-            suptitle = (f"{species_name[species]} VDF and FPC components (LMN) " 
-                            f"{suptitle_sfx}\n MMS{probe} — {title_time}")
-            vdf_lmn = f["lmn"]["bvdf_vol"][:, :, :, time_index]
-            c_lmn = f["lmn"]["c_lmn_vol"][:, :, :, :, time_index]
-            yc_lmn = f["lmn"]["binc_lmnn"][:]
-            xc_lmn = f["lmn"]["binc_lmnn"][:]
-            zc_lmn = f["lmn"]["binc_lmnn"][:]
-            je_lmn = f["lmn"]["JE_tot"][:, time_index]
-            vdf_xy, vdf_yz, vdf_xz = slice3d_to_2d(vdf_lmn)
-            cx_xy, cx_yz, cx_xz  = slice3d_to_2d(c_lmn[0])
-            cy_xy, cy_yz, cy_xz  = slice3d_to_2d(c_lmn[1])
-            cz_xy, cz_yz, cz_xz  = slice3d_to_2d(c_lmn[2])
-            vdf_2d_lmn = (vdf_xy, vdf_xz, vdf_yz.T) # The order is xy, xz and zy
-            cx_2d_lmn = (cx_xy, cx_xz, cx_yz.T)
-            cy_2d_lmn = (cy_xy, cy_xz, cy_yz.T)
-            cz_2d_lmn = (cz_xy, cz_xz, cz_yz.T)
-            ax_pairs_lmn = ((xc_lmn, yc_lmn), (xc_lmn, zc_lmn), (zc_lmn, yc_lmn))
-            axlabels_lmn = (r"$v_L$", r"$v_M$", r"$v_N$")
-            axlabel_pairs_lmn = ((axlabels_lmn[0], axlabels_lmn[1]), 
-                                (axlabels_lmn[0], axlabels_lmn[2]), 
-                                (axlabels_lmn[2], axlabels_lmn[1]))
-            row_labels_lmn = (rf"$\mathrm{{log}}(f_{{{species}}})$", 
+                ax_lbls = [r"$v_L$", r"$v_M$", r"$v_N$"]
+                subs = ["L", "M", "N"]
+                row_lbls = [rf"$\mathrm{{log}}(f_{{{species}}})$", 
                     r"$C_{\mathrm{E}_L}$", r"$C_{\mathrm{E}_M}$", 
-                    r"$C_{\mathrm{E}_N}$")
-            diag_labels_lmn = (rf"$J_{{L}}E_{{L}} = {je_lmn[0]:.2e}$", 
-                               rf"$J_{{M}}E_{{M}} = {je_lmn[1]:.2e}$", 
-                               rf"$J_{{N}}E_{{N}} = {je_lmn[2]:.2e}$")
-            fig = imagecont_vdf_fpc_panel(vdf_2d_lmn, cx_2d_lmn, cy_2d_lmn, cz_2d_lmn, 
-                        ax_pairs_lmn, axlabel_pairs_lmn, row_labels_lmn, diag_labels_lmn, 
-                        dpi_val, axis_fntsz, cbar_ht)
-            fig.suptitle(suptitle, fontsize = 24)
+                    r"$C_{\mathrm{E}_N}$"]
 
+            # Data Loading
+            vdf_vol = grp["bvdf_vol"][:, :, :, time_index]
+            c_vol = grp["c_vol"][:, :, :, :, time_index]
+            je = grp["JE_tot"][:, time_index]
+            xc = grp["binc_n"][:]
+            yc = grp["binc_n"][:]
+            zc = grp["binc_n"][:]
+
+            # Slicing and Prep
+            vdf_xy, vdf_yz, vdf_xz = slice3d_to_2d(vdf_vol)
+            vdf_2d_list = (vdf_xy, vdf_xz, vdf_yz.T) # The order is xy, xz and zy
+            cx_xy, cx_yz, cx_xz = slice3d_to_2d(c_vol[0])
+            cy_xy, cy_yz, cy_xz = slice3d_to_2d(c_vol[1])
+            cz_xy, cz_yz, cz_xz = slice3d_to_2d(c_vol[2])
+            cx_2d_list = (cx_xy, cx_xz, cx_yz.T) # The order is xy, xz and zy
+            cy_2d_list = (cy_xy, cy_xz, cy_yz.T) # The order is xy, xz and zy
+            cz_2d_list = (cz_xy, cz_xz, cz_yz.T) # The order is xy, xz and zy   
+
+            # Axes labels and limits
+            ax_pairs = ((xc, yc), (xc, zc), (zc, yc))
+            axlabel_pairs = ((ax_lbls[0], ax_lbls[1]), (ax_lbls[0], ax_lbls[2]), 
+                    (ax_lbls[2], ax_lbls[1])) # xy, xz, zy
+            diag_lbls = [rf"$J_{subs[i]}E_{subs[i]} = {je[i]:.2e}$" for i in range(3)]
+            
+            # Call rendering function
+            fig, axes = imagecont_vdf_fpc_panel(vdf_2d_list, cx_2d_list, cy_2d_list, cz_2d_list, 
+                        ax_pairs, axlabel_pairs, row_lbls, diag_lbls, dpi_val, 
+                        axis_fntsz, cbar_ht)
+            
+            # Title and Save
+            suptitle = (f"{species_label} VDF and FPC components ({ct.upper()}) " 
+                            f"{suptitle_sfx}\n MMS{probe} — {title_time}")
+            fig.suptitle(suptitle, fontsize = 24)
             if show_tind:
                 fig.text(0.98, 0.98, f"t: {time_index}", ha="right", va="top", fontsize=18)
 
             if save_fig:
-                plot_name = f"mms_fpc_{species}_lmn_{bin_width_frac:.2f}_{time_index}.png"
-                sfx_str = f'_{outdir_sfx}' if outdir_sfx else ''
-                plot_dir = f'plots_lmn{sfx_str}'
-                project_root = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
+                plot_name = f"mms_fpc_{species}_{ct}_{bin_width_frac:.2f}_{time_index}.png"
+                sfx_str = f"_{outdir_sfx}" if outdir_sfx else ""
+                plot_dir = f'plots_fac{sfx_str}'
                 output_dir = os.path.join(project_root, plot_dir)
                 os.makedirs(output_dir, exist_ok=True)
                 fig.savefig(os.path.join(output_dir, plot_name), dpi=dpi_val, bbox_inches='tight')
@@ -171,7 +141,7 @@ def imagecont_vdf_fpc_panel(vdf_2d, cx_2d, cy_2d, cz_2d, ax_pairs, axlabels_pair
                             row_labels, diag_labels, dpi_val=100, axis_fntsz=16, 
                             cbar_ht=0.047):
     """
-    Helper function to the above imagecont_vdf_fpc_panel function which plots 
+    Render helper function to the above imagecont_vdf_fpc_panel function which plots 
     a 4x3 panel of VDF and FPC components.
 
     Parameters:
@@ -252,4 +222,4 @@ def imagecont_vdf_fpc_panel(vdf_2d, cx_2d, cy_2d, cz_2d, ax_pairs, axlabels_pair
         axes[3,0].text(0.05, 0.95, diag_labels[2], transform=axes[3,0].transAxes, 
                        ha="left", va="top", fontsize=14, color="black")
         
-    return fig
+    return fig, axes
