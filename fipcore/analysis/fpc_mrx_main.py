@@ -4,6 +4,7 @@ Runnable master function to perform MMS FPC Analysis.
 
 Functions:
 - fpc_mrx_main: Master function to perform MMS FPC Analysis.
+- fpc_mrx_fold: Function to compute the folded FPC and save to the same h5 file.
 
 Author: Regis John
 Created: 2026-03-31
@@ -32,13 +33,13 @@ def fpc_mrx_main(trange, species='e', vth_lim=3.5, bin_width_frac=0.25, mean_phi
     Master function to perform MMS FPC Analysis by calling the necessary functions.
 
     Parameters:
-    - trange (list of str): start time, end time] in the format:
+    - trange (list of str): [start time, end time] in the format:
         ['YYYY-MM-DD/hh:mm:ss','YYYY-MM-DD/hh:mm:ss']
     - species (str): Species of particle to analyze. Default is 'e'.
     - vth_lim (float): Thermal velocity limit used to determine the bin edges. 
         Default is 3.5.
     - bin_width_frac (float): Fraction of the thermal velocity used to 
-        determine the bin width. Default is 0.1.
+        determine the bin width. Default is 0.25.
     - mean_phi (bool): mean or instantaneous phi values. Default: True.
     - probe (str): Probe number to analyze. Default is '1'.
     - data_rate (str): Data rate of the data. Default is 'brst'.
@@ -287,10 +288,26 @@ def fpc_mrx_main(trange, species='e', vth_lim=3.5, bin_width_frac=0.25, mean_phi
     return hfile
 
 
-def  fpc_mrx_fold(trange, species='e', bin_width_frac=0.25, coord_type="fac"):
+def fpc_mrx_fold(trange, species='e', bin_width_frac=0.25, coord_type="fac"):
+    """
+    Computes folded FPC (Field Particle Correlation) data for a given time range
+    and species.
 
+    Parameters:
+    - trange (list of str): [start time, end time] in the format:
+        ['YYYY-MM-DD/hh:mm:ss','YYYY-MM-DD/hh:mm:ss']
+    - species (str): Species of particle to analyze. Default is 'e'. 
+    - bin_width_frac (float): Fraction of the thermal velocity used to 
+        determine the bin width. Default is 0.25.   
+    - coord_type (str): The type of coordinate system to use. Default is "fac".
+
+    Returns:
+    - hfile (str): Full path of the .h5 file containing the results of the 
+        folded analysis.
+    """
 
     # Data path setup
+    
     project_root = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
     data_dir = os.path.join(project_root, "data")
     hfile_pref = f'mms_fpc_{species}_{bin_width_frac:.2f}'
