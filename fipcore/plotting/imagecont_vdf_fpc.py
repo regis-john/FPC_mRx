@@ -54,7 +54,7 @@ def imagecont_vdf_fpc(trange, species, bin_width_frac, time_index=0,
     if suptitle_sfx is None:
         suptitle_sfx = f"with {bin_width_frac} binwidth"
 
-    # File path setup
+    # Data path setup
     project_root = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
     data_dir = os.path.join(project_root, "data")
     hfile_pref = f'mms_fpc_{species}_{bin_width_frac:.2f}'

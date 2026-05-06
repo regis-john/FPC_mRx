@@ -5,7 +5,7 @@ Functions for creating MMS velocity bin and map in both FAC and LMN frames.
 Functions:
 - nrgy_to_vbin: Convert an energy grid into velocity bins while accounting for 
     spacecraft potential correction.
-- vbin_to_vv: Convert velocity bins into velocity vectors in FAC frame.
+- vbin_to_vv: Convert velocity bins into velocity vectors in GSE frame.
 - vi_bl_flip: Compute the bulk ion velocity at the B_L reversal point in time.
 - vv_to_recx: Convert velocity vectors in GSE frame to recx frame coordinates.
 - vv_to_fac: Rotate velocity vectors to the FAC frame.
